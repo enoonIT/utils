@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from os.path import join
 from glob import glob
 import os
+import random
 
 
 def get_arguments():
@@ -24,15 +25,30 @@ def get_arguments():
 def build_class_dataset(root_dir, image_extensions):
     class2path = {}
     dirs = os.listdir(root_dir)
-    import ipdb; ipdb.set_trace()
     for dir in dirs:
-        images = [glob(join(root_dir, dir) + '*' + ext) for ext in image_extensions]
+        images = []
+        for ext in image_extensions:
+            images += glob(join(root_dir, dir, '*.' + ext))
         class2path[dir] = images
     return class2path
 
 
-def create_split(class2path, n_train, n_test, outpath):
-    return None
+def write_split(lines, path):
+    with open(path, 'wt') as f:
+        f.writelines(lines)
+
+
+def create_split(class2path, n_train, n_test, outpath, split):
+    train_lines = []
+    test_lines = []
+    keys = sorted(class2path.keys())
+    for l, key in enumerate(keys):
+        images = class2path[key]
+        random.shuffle(images)
+        train_lines += [line + ' ' + str(l) + '\n' for line in images[:n_train]]
+        test_lines += [line + ' ' + str(l) + '\n' for line in images[n_train:n_train+n_test]]
+    write_split(train_lines, outpath + 'train_%d.txt' % split)
+    write_split(test_lines, outpath + 'test_%d.txt' % split)
 
 
 if __name__ == '__main__':
@@ -40,4 +56,4 @@ if __name__ == '__main__':
     class2path = build_class_dataset(args.root_dir, args.image_extensions)
     for i in range(args.n_splits):
         outpath = join(args.output_folder, args.split_prefix)
-        create_split(class2path, args.train_n, args.test_n, outpath)
+        create_split(class2path, args.train_n, args.test_n, outpath, i)
